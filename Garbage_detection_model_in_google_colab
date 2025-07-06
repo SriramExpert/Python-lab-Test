@@ -1,0 +1,893 @@
+{
+  "nbformat": 4,
+  "nbformat_minor": 0,
+  "metadata": {
+    "colab": {
+      "provenance": [],
+      "authorship_tag": "ABX9TyOu2pm52rRscCuRPRG4JtCo",
+      "include_colab_link": true
+    },
+    "kernelspec": {
+      "name": "python3",
+      "display_name": "Python 3"
+    },
+    "language_info": {
+      "name": "python"
+    }
+  },
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "view-in-github",
+        "colab_type": "text"
+      },
+      "source": [
+        "<a href=\"https://colab.research.google.com/github/SriramExpert/Python-lab-Test/blob/main/Garbage_detection_model_in_google_colab\" target=\"_parent\"><img src=\"https://colab.research.google.com/assets/colab-badge.svg\" alt=\"Open In Colab\"/></a>"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# **🚀 Overview**\n",
+        "This notebook provides an end-to-end pipeline for training/fine-tuning and inferencing with a YOLO-based object detection model. Key features:\n",
+        "\n",
+        "      ✔ Load custom datasets in YOLO format\n",
+        "\n",
+        "      ✔ Train/fine-tune a model (optional)\n",
+        "\n",
+        "      ✔ Run inference on images/videos\n",
+        "\n",
+        "      ✔ Visualize results\n"
+      ],
+      "metadata": {
+        "id": "pyja_E_TRrbF"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# **📂 Dataset Structure (YOLO Format)**\n",
+        "\n",
+        "        dataset/  \n",
+        "        ├── images/          # Training images (.jpg, .png)  \n",
+        "        │   ├── train/  \n",
+        "        │   └── val/  \n",
+        "        └── labels/          # YOLO annotation files (.txt)  \n",
+        "            ├── train/  \n",
+        "            └── val/  "
+      ],
+      "metadata": {
+        "id": "ZZ5kl0FySBXn"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**Step 1:** MOUNT YOUR GOOGLE DRIVE"
+      ],
+      "metadata": {
+        "id": "Dz9cVMyNSX4C"
+      }
+    },
+    {
+      "cell_type": "code",
+      "execution_count": null,
+      "metadata": {
+        "id": "ktYx_vwVQpX9"
+      },
+      "outputs": [],
+      "source": [
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive')"
+      ]
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**Step 2:** VERIFY YOUR RUNTIME ENVIRONMENT"
+      ],
+      "metadata": {
+        "id": "d6E_d2H2SwbM"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "      Go to Edit -> Change Runtime Environment -> T4(GPU)"
+      ],
+      "metadata": {
+        "id": "6uLt7V1fS-5m"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!nvidia -smi"
+      ],
+      "metadata": {
+        "id": "YNkoX2NdVJ0O"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**Step 3:** Clone my Repository for images and labels"
+      ],
+      "metadata": {
+        "id": "8hg6DgYgTLwY"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**Step 4:** Create the folder in drive"
+      ],
+      "metadata": {
+        "id": "INjMR5SDXkJe"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from google.colab import drive\n",
+        "drive.mount('/content/drive')  # Mount Google Drive\n",
+        "\n",
+        "# Create the folder (if it doesn't exist)\n",
+        "!mkdir -p \"/content/drive/MyDrive/Garbage_detection_model\"\n",
+        "\n",
+        "print(\"Folder created: /content/drive/MyDrive/Garbage_detection_model\")"
+      ],
+      "metadata": {
+        "id": "Hb-x5DtTYDOh"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**Step 5:** Place the images and label folder in created repository and verify the images and label folder exists in Garbage_detection_model"
+      ],
+      "metadata": {
+        "id": "o2JQ0abPYK2r"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import os\n",
+        "\n",
+        "# Path to your Garbage_detection_model folder in Google Drive\n",
+        "target_dir = \"/content/drive/MyDrive/Garbage_detection_model\"\n",
+        "\n",
+        "# Check if directory exists\n",
+        "if not os.path.exists(target_dir):\n",
+        "    print(f\"Error: Directory '{target_dir}' does not exist!\")\n",
+        "else:\n",
+        "    print(f\"Directory found: {target_dir}\")\n",
+        "\n",
+        "    # Verify images and labels folders\n",
+        "    required_folders = ['images', 'labels']\n",
+        "    missing_folders = [folder for folder in required_folders\n",
+        "                      if not os.path.exists(os.path.join(target_dir, folder))]\n",
+        "\n",
+        "    if missing_folders:\n",
+        "        print(f\"Missing folders: {', '.join(missing_folders)}\")\n",
+        "    else:\n",
+        "        print(\"All required folders exist!\")\n",
+        "        print(\"\\nFolder contents:\")\n",
+        "        for folder in required_folders:\n",
+        "            files = os.listdir(os.path.join(target_dir, folder))\n",
+        "            print(f\"{folder}/: {len(files)} files\")"
+      ],
+      "metadata": {
+        "id": "sc_OB2hmYnKW"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# **Ok lets starts our Model**"
+      ],
+      "metadata": {
+        "id": "0Ru-_kTHVVYH"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**1. INSTALLATION**"
+      ],
+      "metadata": {
+        "id": "NSmeEMnmVcsg"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!pip install ultralytics"
+      ],
+      "metadata": {
+        "id": "HI2MncJcVl8A"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**2. Dataset Preparation – Train/Val/Test Split**\n",
+        "\n",
+        "\n",
+        "\n",
+        "   This script organizes a custom YOLO dataset by splitting images and their corresponding labels into structured training (70%), validation (20%), and test (10%) sets. It automatically creates the necessary directory structure and ensures each image is matched with its correct annotation file. The randomized shuffling guarantees balanced data distribution across all splits for effective model training and evaluation.\n"
+      ],
+      "metadata": {
+        "id": "92r9YliyVmdq"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import os\n",
+        "import shutil\n",
+        "import random\n",
+        "from google.colab import drive\n",
+        "\n",
+        "# Mount Google Drive\n",
+        "drive.mount('/content/drive')\n",
+        "\n",
+        "# Updated Paths for Google Drive\n",
+        "base_dir = \"/content/drive/MyDrive/Garbage_detection_model\"\n",
+        "original_images = os.path.join(base_dir, \"images\")\n",
+        "original_labels = os.path.join(base_dir, \"labels\")\n",
+        "dataset_dir = base_dir\n",
+        "\n",
+        "# Verify source folders exist\n",
+        "print(\"Verifying source directories...\")\n",
+        "assert os.path.exists(original_images), f\"Images folder not found at {original_images}\"\n",
+        "assert os.path.exists(original_labels), f\"Labels folder not found at {original_labels}\"\n",
+        "print(\"✓ Source directories verified\\n\")\n",
+        "\n",
+        "# Create train/val/test folders\n",
+        "print(\"Creating dataset structure...\")\n",
+        "for split in [\"train\", \"val\", \"test\"]:\n",
+        "    os.makedirs(os.path.join(dataset_dir, split, \"images\"), exist_ok=True)\n",
+        "    os.makedirs(os.path.join(dataset_dir, split, \"labels\"), exist_ok=True)\n",
+        "print(\"✓ Dataset structure created\\n\")\n",
+        "\n",
+        "# Get and shuffle image files\n",
+        "image_files = [f for f in os.listdir(original_images) if f.lower().endswith(('.jpg', '.png', '.jpeg'))]\n",
+        "random.shuffle(image_files)\n",
+        "\n",
+        "# Split dataset (70-20-10)\n",
+        "total_files = len(image_files)\n",
+        "train_split = int(0.7 * total_files)\n",
+        "val_split = int(0.2 * total_files)\n",
+        "\n",
+        "train_files = image_files[:train_split]\n",
+        "val_files = image_files[train_split:train_split + val_split]\n",
+        "test_files = image_files[train_split + val_split:]\n",
+        "\n",
+        "def copy_files(files, split):\n",
+        "    \"\"\"Helper function to copy files with verification\"\"\"\n",
+        "    for file in files:\n",
+        "        # Copy image\n",
+        "        img_src = os.path.join(original_images, file)\n",
+        "        img_dest = os.path.join(dataset_dir, split, \"images\", file)\n",
+        "        shutil.copy2(img_src, img_dest)\n",
+        "\n",
+        "        # Copy corresponding label\n",
+        "        label_file = os.path.splitext(file)[0] + \".txt\"\n",
+        "        label_src = os.path.join(original_labels, label_file)\n",
+        "        label_dest = os.path.join(dataset_dir, split, \"labels\", label_file)\n",
+        "\n",
+        "        if not os.path.exists(label_src):\n",
+        "            print(f\"⚠ Warning: Missing label for {file}\")\n",
+        "        else:\n",
+        "            shutil.copy2(label_src, label_dest)\n",
+        "\n",
+        "# Copy files to respective folders\n",
+        "print(\"Copying files...\")\n",
+        "copy_files(train_files, \"train\")\n",
+        "copy_files(val_files, \"val\")\n",
+        "copy_files(test_files, \"test\")\n",
+        "\n",
+        "# Final summary\n",
+        "print(\"\\nDataset split complete:\")\n",
+        "print(f\"Total images: {total_files}\")\n",
+        "print(f\"Train set: {len(train_files)} images ({len(train_files)/total_files:.0%})\")\n",
+        "print(f\"Validation set: {len(val_files)} images ({len(val_files)/total_files:.0%})\")\n",
+        "print(f\"Test set: {len(test_files)} images ({len(test_files)/total_files:.0%})\")\n",
+        "\n",
+        "# Verification\n",
+        "print(\"\\nVerifying destination files...\")\n",
+        "for split in [\"train\", \"val\", \"test\"]:\n",
+        "    imgs = len(os.listdir(os.path.join(dataset_dir, split, \"images\")))\n",
+        "    lbls = len(os.listdir(os.path.join(dataset_dir, split, \"labels\")))\n",
+        "    print(f\"{split.upper()}: {imgs} images, {lbls} labels ({'✓' if imgs==lbls else '⚠ Mismatch!'})\")"
+      ],
+      "metadata": {
+        "id": "bMk2guB5XdN4"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**3. Dataset Validation & Cleaning**\n",
+        "\n",
+        "    Verifies image-label pairs and handles mismatches to ensure dataset integrity."
+      ],
+      "metadata": {
+        "id": "qNNZG-UPeKRh"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import os\n",
+        "\n",
+        "def check_missing_labels(dataset_path):\n",
+        "    \"\"\"Identifies images without corresponding label files in train/val/test splits\"\"\"\n",
+        "    for split in [\"train\", \"val\", \"test\"]:\n",
+        "        image_dir = os.path.join(dataset_path, split, \"images\")\n",
+        "        label_dir = os.path.join(dataset_path, split, \"labels\")\n",
+        "\n",
+        "        # Get filenames without extensions\n",
+        "        images = set(os.path.splitext(f)[0] for f in os.listdir(image_dir))\n",
+        "        labels = set(os.path.splitext(f)[0] for f in os.listdir(label_dir))\n",
+        "\n",
+        "        missing = images - labels\n",
+        "        print(f\"{split.upper()}: {len(missing)} missing labels: {list(missing)[:5]}...\")\n",
+        "\n",
+        "check_missing_labels(\"/content/drive/MyDrive/Garbage_detection_model\")"
+      ],
+      "metadata": {
+        "id": "zCVbZpksfHXF"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Note: If any mismatches in the above output..\n",
+        "\n",
+        "          TRAIN: 3 missing labels: ['paper340_jpg.rf.90a0202', 'plastic12_jpg.rf.a1b2c3d', ...]\n",
+        "          VAL: 0 missing labels: []\n",
+        "          TEST: 1 missing labels: ['metal8_jpg.rf.x7y8z9']\n",
+        "\n",
+        "Like this.. Run the below code"
+      ],
+      "metadata": {
+        "id": "ogD99qmAfNPN"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import os\n",
+        "\n",
+        "def remove_unpaired_files(dataset_path):\n",
+        "    \"\"\"Deletes images without corresponding labels and vice versa\"\"\"\n",
+        "    for split in [\"train\", \"val\", \"test\"]:\n",
+        "        image_dir = os.path.join(dataset_path, split, \"images\")\n",
+        "        label_dir = os.path.join(dataset_path, split, \"labels\")\n",
+        "\n",
+        "        # Get filename stems\n",
+        "        images = {os.path.splitext(f)[0] for f in os.listdir(image_dir)}\n",
+        "        labels = {os.path.splitext(f)[0] for f in os.listdir(label_dir)}\n",
+        "\n",
+        "        # Remove unpaired images\n",
+        "        for missing in images - labels:\n",
+        "            img_path = os.path.join(image_dir, f\"{missing}.jpg\")\n",
+        "            os.remove(img_path)\n",
+        "            print(f\"Removed unpaired image: {img_path}\")\n",
+        "\n",
+        "        # Remove unpaired labels\n",
+        "        for missing in labels - images:\n",
+        "            lbl_path = os.path.join(label_dir, f\"{missing}.txt\")\n",
+        "            os.remove(lbl_path)\n",
+        "            print(f\"Removed unpaired label: {lbl_path}\")\n",
+        "\n",
+        "remove_unpaired_files(\"/content/drive/MyDrive/Garbage_detection_model\")"
+      ],
+      "metadata": {
+        "id": "eBx4I12yfuPh"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "Complete the above step and\n",
+        "\n",
+        "**Again Re-run the step 3**"
+      ],
+      "metadata": {
+        "id": "vHY21EBff5PT"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**4. Dataset Structure Verification**\n",
+        "\n",
+        "        Validates the existence of required image/label folders in all dataset splits\n",
+        "\n",
+        "        Purpose\n",
+        "        This code checks whether your dataset is properly organized with the correct folder structure before training:\n",
+        "\n",
+        "        Ensures images and labels subfolders exist in each split (train, val, test)\n",
+        "\n",
+        "        Helps catch missing directories early to prevent training errors"
+      ],
+      "metadata": {
+        "id": "p7TwL5wkgTVV"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# **📂 Dataset Structure (YOLO Format)**\n",
+        "              dataset/  \n",
+        "              ├── images/          # Training images (.jpg, .png)  \n",
+        "              │   ├── train/  \n",
+        "              │   └── val/  \n",
+        "              └── labels/          # YOLO annotation files (.txt)  \n",
+        "                  ├── train/  \n",
+        "                  └── val/  "
+      ],
+      "metadata": {
+        "id": "u46MBWxkgizS"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import os\n",
+        "\n",
+        "splits = [\"train\", \"val\", \"test\"]\n",
+        "for split in splits:\n",
+        "    img_dir = os.path.join(split, \"images\")\n",
+        "    label_dir = os.path.join(split, \"labels\")\n",
+        "    print(f\"{split.upper()}:\")\n",
+        "    print(f\"  Images: {img_dir} exists? {os.path.exists(img_dir)}\")\n",
+        "    print(f\"  Labels: {label_dir} exists? {os.path.exists(label_dir)}\")"
+      ],
+      "metadata": {
+        "id": "qKaBKCvagw2J"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**5. Dataset Configuration (data.yaml)**\n",
+        "\n",
+        "    Creates the YAML configuration file required for YOLOv8 training"
+      ],
+      "metadata": {
+        "id": "1L6zsYoeg13x"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import yaml\n",
+        "import os\n",
+        "\n",
+        "# Configuration\n",
+        "config = {\n",
+        "    'path': '/content/drive/MyDrive/Garbage_detection_model',  # Base dataset path\n",
+        "    'train': 'train/images',\n",
+        "    'val': 'val/images',\n",
+        "    'test': 'test/images',\n",
+        "    'nc': 6,\n",
+        "    'names': ['Metal', 'Paper', 'Plastic', 'Random Trash', 'cardboard', 'glass']\n",
+        "}\n",
+        "\n",
+        "# Create directory if not exists\n",
+        "os.makedirs(config['path'], exist_ok=True)\n",
+        "\n",
+        "# Save YAML file\n",
+        "yaml_path = os.path.join(config['path'], 'data.yaml')\n",
+        "with open(yaml_path, 'w') as f:\n",
+        "    yaml.dump(config, f, sort_keys=False)\n",
+        "\n",
+        "print(f\"✅ YAML configuration saved to:\\n{yaml_path}\")\n",
+        "print(\"\\nFile content:\")\n",
+        "with open(yaml_path, 'r') as f:\n",
+        "    print(f.read())"
+      ],
+      "metadata": {
+        "id": "y08K0qvTiHJQ"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**6. Model Training with YOLOv8**\n",
+        "\n",
+        "      Train your custom garbage detection model using Ultralytics YOLOv8"
+      ],
+      "metadata": {
+        "id": "TRjXk7BriQnp"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from ultralytics import YOLO\n",
+        "\n",
+        "model = YOLO(\"yolov8n.pt\")  # Nano model (fastest)\n",
+        "\n",
+        "# Start training\n",
+        "results = model.train(\n",
+        "    data=\"/content/drive/MyDrive/Garbage_detection_model/data.yaml\",\n",
+        "    epochs=50,\n",
+        "    imgsz=640,\n",
+        "    batch=16,\n",
+        "    name=\"garbage_detection_colab\"\n",
+        ")"
+      ],
+      "metadata": {
+        "id": "gOtddQHOiKfJ"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**7. Training Performance Visualization**\n",
+        "\n",
+        "      Analyze and visualize model training metrics to evaluate performance"
+      ],
+      "metadata": {
+        "id": "vgHoJ9swi5Q1"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "import pandas as pd\n",
+        "import matplotlib.pyplot as plt\n",
+        "\n",
+        "# Load training metrics\n",
+        "metrics_path = '/content/drive/MyDrive/Garbage_detection_model/runs/detect/garbage_detection_colab2/results.csv'\n",
+        "metrics = pd.read_csv(metrics_path)\n",
+        "\n",
+        "# Create performance plot\n",
+        "plt.figure(figsize=(10, 6))\n",
+        "plt.plot(metrics['epoch'], metrics['metrics/mAP50(B)'],\n",
+        "         label='mAP50', linewidth=2, color='royalblue')\n",
+        "plt.xlabel('Epoch', fontsize=12)\n",
+        "plt.ylabel('mAP50', fontsize=12)\n",
+        "plt.title('Training Performance: mAP50 Over Epochs', fontsize=14, pad=20)\n",
+        "plt.legend(fontsize=12)\n",
+        "plt.grid(True, alpha=0.3)\n",
+        "plt.tight_layout()\n",
+        "plt.show()"
+      ],
+      "metadata": {
+        "id": "ZDNr4c63ikeD"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**8. Model Evaluation on Test Set**\n",
+        "\n",
+        "      Validate your trained model's performance on unseen data"
+      ],
+      "metadata": {
+        "id": "TT9MJUEPi9_-"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from ultralytics import YOLO\n",
+        "\n",
+        "# Load model\n",
+        "model = YOLO('/content/drive/MyDrive/Garbage_detection_model/runs/detect/garbage_detection_colab2/weights/best.pt')\n",
+        "\n",
+        "# Predict on single image\n",
+        "results = model.predict(\n",
+        "    source='/content/drive/MyDrive/Garbage_detection_model/glass.jpg',\n",
+        "    conf=0.5,\n",
+        "    save=True,\n",
+        "    show_labels=True\n",
+        ")"
+      ],
+      "metadata": {
+        "id": "cMtBJDrQjcV9"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**Verify the run folder exist**"
+      ],
+      "metadata": {
+        "id": "jxzDnOpsjkfa"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "!ls -la \"/content/drive/MyDrive/Garbage_detection_model/runs/detect/garbage_detection_colab2\""
+      ],
+      "metadata": {
+        "id": "puwmXdfsje7p"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**9. Model Deployment for Inference**\n",
+        "\n",
+        "      Run your trained garbage detection model on new images and videos"
+      ],
+      "metadata": {
+        "id": "TZ9rwNDKkjIJ"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**1. Image Detection (Detect objects in single images).**"
+      ],
+      "metadata": {
+        "id": "WvQNu55BkmUR"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from ultralytics import YOLO\n",
+        "import matplotlib.pyplot as plt\n",
+        "\n",
+        "# Load trained model\n",
+        "model = YOLO('/content/runs/detect/garbage_detection_colab2/weights/best.pt')\n",
+        "\n",
+        "# Run prediction\n",
+        "results = model.predict(\n",
+        "    source='/content/drive/MyDrive/Garbage_detection_model/test_image.jpg',\n",
+        "    conf=0.5,          # Confidence threshold (adjust as needed)\n",
+        "    save=True,         # Saves to 'runs/detect/predict'\n",
+        "    save_txt=True,     # Save labels as .txt files\n",
+        "    save_conf=True,    # Save confidence scores in labels\n",
+        "    show=True,         # Display results inline (Colab/Jupyter)\n",
+        "    show_labels=True,  # Show class labels\n",
+        "    show_conf=True     # Show confidence scores\n",
+        ")\n",
+        "\n",
+        "# Display results\n",
+        "for result in results:\n",
+        "    plt.imshow(result.plot()[:,:,::-1])  # Convert BGR to RGB\n",
+        "    plt.axis('off')\n",
+        "    plt.show()"
+      ],
+      "metadata": {
+        "id": "_riuakhfkpxZ"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**2. Video Detection (Process video files frame-by-frame)**"
+      ],
+      "metadata": {
+        "id": "uporJHs7kqn6"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from ultralytics import YOLO\n",
+        "from IPython.display import HTML\n",
+        "from base64 import b64encode\n",
+        "\n",
+        "# Load model\n",
+        "model = YOLO('/content/runs/detect/garbage_detection_colab2/weights/best.pt')\n",
+        "\n",
+        "# Video prediction\n",
+        "video_results = model.predict(\n",
+        "    source='/content/drive/MyDrive/Garbage_detection_model/test_video.mp4',\n",
+        "    conf=0.45,         # Slightly lower threshold for videos\n",
+        "    save=True,         # Saves to 'runs/detect/predict'\n",
+        "    save_txt=True,\n",
+        "    imgsz=640,        # Maintain training resolution\n",
+        "    stream=True,       # For smoother video processing\n",
+        "    show_conf=True\n",
+        ")\n",
+        "\n",
+        "# Display processed video in Colab\n",
+        "output_path = '/content/runs/detect/predict/test_video.mp4'\n",
+        "mp4 = open(output_path,'rb').read()\n",
+        "HTML(f\"\"\"<video width=600 controls><source src=\"data:video/mp4;base64,{b64encode(mp4).decode()}\"></video>\"\"\")"
+      ],
+      "metadata": {
+        "id": "_W3iKAQfktBx"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# **Finally object Detection was successfully executed..**"
+      ],
+      "metadata": {
+        "id": "0j5PzdWHlQjW"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**Note: IF YOU WANT OBJECT SEGMENTATION**"
+      ],
+      "metadata": {
+        "id": "iPsfQCrFlRT2"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# **Extending to Object Segmentation**"
+      ],
+      "metadata": {
+        "id": "58iP4KT6mJA8"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**1. Model Training for Segmentation**"
+      ],
+      "metadata": {
+        "id": "Dusq5tLbmLIT"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from ultralytics import YOLO\n",
+        "\n",
+        "# Load segmentation model (choose from yolov8n-seg, yolov8s-seg, etc.)\n",
+        "seg_model = YOLO('yolov8s-seg.pt')  # Medium-sized model\n",
+        "\n",
+        "# Train with segmentation dataset\n",
+        "results = seg_model.train(\n",
+        "    data='/content/drive/MyDrive/Garbage_detection_model/data.yaml',\n",
+        "    epochs=100,\n",
+        "    imgsz=640,\n",
+        "    batch=16,\n",
+        "    name='garbage_segmentation_colab',\n",
+        "    overlap_mask=True,  # Allow mask overlaps\n",
+        "    single_cls=False    # Multi-class segmentation\n",
+        ")"
+      ],
+      "metadata": {
+        "id": "72zPZ273lx6r"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "**2. Segmentation Inference**"
+      ],
+      "metadata": {
+        "id": "ItMEiyfwm_ni"
+      }
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "    Image Segmentation"
+      ],
+      "metadata": {
+        "id": "OkdqWh2bnBRK"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from ultralytics import YOLO\n",
+        "import matplotlib.pyplot as plt\n",
+        "\n",
+        "# Load trained model\n",
+        "model = YOLO('runs/segment/garbage_segmentation_colab/weights/best.pt')\n",
+        "\n",
+        "# Predict with masks\n",
+        "results = model.predict(\n",
+        "    source='/content/test_image.jpg',\n",
+        "    conf=0.5,\n",
+        "    save=True,\n",
+        "    show=True,\n",
+        "    boxes=True,       # Show bounding boxes\n",
+        "    masks=True,       # Show segmentation masks\n",
+        "    retina_masks=True # Higher quality masks\n",
+        ")\n",
+        "\n",
+        "# Display with custom opacity\n",
+        "for r in results:\n",
+        "    plt.imshow(r.plot(boxes=True, masks=True, mask_alpha=0.5))\n",
+        "    plt.axis('off')\n",
+        "    plt.show()"
+      ],
+      "metadata": {
+        "id": "CP3Ul4MVnCuq"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "    Video Segmentation"
+      ],
+      "metadata": {
+        "id": "A7Sd_9K8nFZz"
+      }
+    },
+    {
+      "cell_type": "code",
+      "source": [
+        "from IPython.display import HTML\n",
+        "from base64 import b64encode\n",
+        "\n",
+        "results = model.predict(\n",
+        "    source='/content/test_video.mp4',\n",
+        "    conf=0.45,\n",
+        "    save=True,\n",
+        "    stream=True,      # Memory-efficient processing\n",
+        "    save_masks=True,  # Save mask overlays\n",
+        "    imgsz=640\n",
+        ")\n",
+        "\n",
+        "# Display in Colab\n",
+        "output_path = 'runs/segment/predict/test_video.mp4'\n",
+        "mp4 = open(output_path,'rb').read()\n",
+        "HTML(f\"\"\"<video width=800 controls><source src=\"data:video/mp4;base64,{b64encode(mp4).decode()}\"></video>\"\"\")"
+      ],
+      "metadata": {
+        "id": "VgZyUeWunG_z"
+      },
+      "execution_count": null,
+      "outputs": []
+    },
+    {
+      "cell_type": "markdown",
+      "source": [
+        "# **FINALLY THE SEGMENTATION PROCESS WAS COMPLETED SUCCESSFULLY...**"
+      ],
+      "metadata": {
+        "id": "CuZZhIFFnNBL"
+      }
+    }
+  ]
+}
